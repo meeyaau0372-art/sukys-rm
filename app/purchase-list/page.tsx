@@ -12,10 +12,10 @@ type Row = {
   payback: string;
   method: string;
   repay: string;
+  cardRepay: string;   // ← 이 한 줄만 추가
   writeDate: string;
   reviewFee: string;
 };
-
 /* 결제방법 8개 (그대로 사용) */
 const paymentMethods = [
   "김토끼",
