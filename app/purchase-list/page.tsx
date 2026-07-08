@@ -15,6 +15,7 @@ type Row = {
   cardRepay: string;   // ← 이 한 줄만 추가
   writeDate: string;
   reviewFee: string;
+  reviewPaid: string;
 };
 /* 결제방법 8개 (그대로 사용) */
 const paymentMethods = [
