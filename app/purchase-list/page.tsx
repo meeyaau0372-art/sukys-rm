@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabase";
 
 type Row = {
   date: string;
@@ -37,21 +38,20 @@ export default function PurchaseListPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("sukys-data");
+  loadData();
+}, []);
 
-    if (saved) {
-      const list = JSON.parse(saved);
+const loadData = async () => {
+  const { data, error } = await supabase
+    .from("purchases")
+    .select("*")
+    .order("date", { ascending: false });
 
-      list.sort((a: any, b: any) => {
-        return (
-          new Date(b.date.replace(/\//g, "-")).getTime() -
-          new Date(a.date.replace(/\//g, "-")).getTime()
-        );
-      });
+  if (!error && data) {
+    setRows(data as Row[]);
+  }
+};
 
-      setRows(list);
-    }
-  }, []);
   const save = (data: Row[]) => {
     setRows(data);
     localStorage.setItem("sukys-data", JSON.stringify(data));

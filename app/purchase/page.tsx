@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabase";
 
 export default function PurchasePage() {
   const router = useRouter();
@@ -31,18 +32,26 @@ const onChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const save = () => {
-    const saved = localStorage.getItem("sukys-data");
-    const list = saved ? JSON.parse(saved) : [];
+  const save = async () => {
+  const { error } = await supabase.from("purchases").insert([
+  {
+    date: form.date,
+    manager: form.manager,
+    bangje: form.bangje,
+    item: form.item,
+    price: Number(form.price),
+    method: form.method,
+    payback: "FALSE",
+    repay: "FALSE",
+    reviewPaid: "FALSE",
+    cardRepay: "FALSE",
+  },
+]);
 
- list.push({
-  ...form,
-  payback: "FALSE",
-  repay: "FALSE",
-  reviewPaid: "FALSE",
-  cardRepay: "FALSE",
-});
-   localStorage.setItem("sukys-data", JSON.stringify(list));
+if (error) {
+  alert("저장 실패 : " + error.message);
+  return;
+}  
 
 alert("저장 완료");
 

@@ -3,19 +3,31 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { supabase } from "./lib/supabase";
 
 export default function Home() {
   const router = useRouter();
 const [rows, setRows] = useState<any[]>([]);
  const headerColor = "#ff82c3";
 
- useEffect(() => {
-  const saved = localStorage.getItem("sukys-data");
-
-  if (saved) {
-    setRows(JSON.parse(saved));
-  }
+useEffect(() => {
+  loadData();
 }, []);
+
+async function loadData() {
+  const { data, error } = await supabase
+    .from("purchases")
+    .select("*")
+    .order("date", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  setRows(data ?? []);
+}
+
  const cardBtn = {
 
 background: "linear-gradient(135deg,#ff9ed0,#ff82c3)",
