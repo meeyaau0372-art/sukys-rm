@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 type Row = {
+  id: number;
   date: string;
   manager: string;
   item: string;
@@ -47,6 +48,8 @@ const loadData = async () => {
     .select("*")
     .order("date", { ascending: false });
 
+    console.log("data =", data);
+console.log("error =", error);
   if (!error && data) {
     setRows(data as Row[]);
   }
