@@ -32,7 +32,7 @@ const paymentMethods = [
 ];
 
 export default function PurchaseListPage() {
-  throw new Error("purchase-list test");
+  
   const router = useRouter();
 
   const [rows, setRows] = useState<Row[]>([]);
