@@ -65,6 +65,45 @@ setForm({
 });
   };
 
+const importJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const text = await file.text();
+ const raw = JSON.parse(text);
+
+const data = raw.map((row: any) => ({
+  date: row.date ?? "",
+  manager: row.manager ?? "",
+  bangje: row.bangje ?? "",
+  item: row.item ?? "",
+  price: Number(String(row.price).replace(/,/g, "")) || 0,
+  method: row.method ?? "",
+  payback: row.payback ?? row.paid ?? "FALSE",
+  repay: row.repay ?? "FALSE",
+  reviewPaid: row.reviewPaid ?? "FALSE",
+  cardRepay: row.cardRepay ?? "FALSE",
+  writeDate: row.writeDate ?? "",
+reviewFee: row.reviewFee ?? "",
+}));
+
+  const { error } = await supabase
+    .from("purchases")
+    .insert(data);
+
+  if (error) {
+    alert("업로드 실패 : " + error.message);
+    return;
+  }
+
+  alert(`${data.length}건 업로드 완료`);
+};
+
+<input
+  type="file"
+  accept=".json"
+  onChange={importJson}
+/>
 
  return (
   <main
@@ -351,6 +390,15 @@ fontWeight: 700,
   >
     저장하기
   </button>
+<div style={{ marginTop: 15 }}>
+  <input
+    type="file"
+    accept=".json"
+    onChange={importJson}
+  />
+</div>
+
+
 </div>
 
     </main>
