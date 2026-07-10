@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 const navBtn = {
   padding: "8px 18px",
   border: "none",
@@ -21,13 +22,18 @@ const topRightBar = {
 export default function ReviewPage() {
   const [rows, setRows] = useState<any[]>([]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("sukys-data");
+const loadData = async () => {
+  const { data } = await supabase
+    .from("purchases")
+    .select("*")
+    .order("date", { ascending: false });
 
-    if (saved) {
-      setRows(JSON.parse(saved));
-    }
-  }, []);
+  if (data) setRows(data);
+};
+
+useEffect(() => {
+  loadData();
+}, []);
 
   return (
     <main
@@ -166,16 +172,23 @@ margin: "20px auto",
   }}
 >
   {row.item}
+  
 </td>
 <td
-  onClick={() => {
+  onClick={async () => {
     const today = new Date().toISOString().slice(0, 10);
 
-    const list = [...rows];
-    list[index].writeDate = today;
+    const { error } = await supabase
+      .from("purchases")
+      .update({ writeDate: today })
+      .eq("id", row.id);
 
-    setRows(list);
-    localStorage.setItem("sukys-data", JSON.stringify(list));
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    loadData();
   }}
   style={{
     padding: 8,

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 
 type Row = {
+  id: number;
   date: string;
   manager: string;
   item: string;
@@ -31,6 +33,7 @@ const paymentMethods = [
 ];
 
 export default function PurchaseListPage() {
+ 
   const router = useRouter();
 
   const [rows, setRows] = useState<Row[]>([]);
@@ -38,25 +41,25 @@ export default function PurchaseListPage() {
   const [methodFilter, setMethodFilter] = useState("전체");
 
   useEffect(() => {
-    const saved = localStorage.getItem("sukys-data");
+  loadData();
+}, []);
 
-    if (saved) {
-      const list = JSON.parse(saved);
+const loadData = async () => {
+  const { data, error } = await supabase
+    .from("purchases")
+    .select("*")
+    .order("date", { ascending: false });
 
-      list.sort((a: any, b: any) => {
-        return (
-          new Date(b.date.replace(/\//g, "-")).getTime() -
-          new Date(a.date.replace(/\//g, "-")).getTime()
-        );
-      });
+if (!error && data) {
+  console.log("loadData", data.length, data[0]);
+  setRows(data as Row[]);
+}
+};
 
-      setRows(list);
-    }
-  }, []);
-  const save = (data: Row[]) => {
-    setRows(data);
-    localStorage.setItem("sukys-data", JSON.stringify(data));
-  };
+
+const save = (data: Row[]) => {
+  setRows(data);
+};
 
   const toggleSelect = (i: number) => {
   setSelected((p) =>
@@ -84,11 +87,25 @@ const toggleAll = () => {
     save(copy);
   };
 
-  const toggleBool = (i: number, key: "payback" | "repay") => {
-    const copy = [...rows];
-    copy[i][key] = copy[i][key] === "TRUE" ? "FALSE" : "TRUE";
-    save(copy);
-  };
+ const toggleBool = async (i: number, key: "payback" | "repay") => {
+  const row = rows[i];
+
+  const newValue = row[key] === "TRUE" ? "FALSE" : "TRUE";
+
+  const { error } = await supabase
+    .from("purchases")
+    .update({
+      [key]: newValue,
+    })
+    .eq("id", row.id);
+
+  if (error) {
+    alert("저장 실패 : " + error.message);
+    return;
+  }
+
+  loadData();
+};
 
   const deleteRows = () => {
     const filtered = rows.filter((_, i) => !selected.includes(i));
@@ -116,18 +133,24 @@ const toggleAll = () => {
 
     router.push("/done");
   };
- const cardRepay = () => {
-  const copy = [...rows];
+ const cardRepay = async () => {
+  const ids = selected.map((i) => rows[i].id);
 
- selected.forEach((i) => {
-  copy[i].cardRepay = "TRUE";
-  copy[i].repay = "TRUE";
-});
-console.log("선택", selected);
-console.log("변경후", copy[selected[0]]);
+  const { error } = await supabase
+    .from("purchases")
+    .update({
+      cardRepay: "TRUE",
+      repay: "TRUE",
+    })
+    .in("id", ids);
 
-  save(copy);
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
   setSelected([]);
+  loadData();
 };
 
 const dot = (v: string) => (v === "TRUE" ? "🟢" : "🔴");
@@ -139,8 +162,9 @@ const selectedTotal = selected.reduce((sum, i) => {
   return sum + Number(String(row.price).replace(/,/g, ""));
 }, 0);
 
-const filteredRows = rows
+console.log("rows =", rows.length);
 
+const filteredRows = rows
   
     .map((row, index) => ({ row, index }))
     .filter(({ row }) =>

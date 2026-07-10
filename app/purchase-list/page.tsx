@@ -73,18 +73,31 @@ console.log("error =", error);
     save(copy);
   };
 
-  const toggleBool = (i: number, key: "payback" | "repay") => {
-  const copy = [...rows];
+const toggleBool = async (i: number, key: "payback" | "repay") => {
+  const row = rows[i];
 
-  copy[i][key] = copy[i][key] === "TRUE" ? "FALSE" : "TRUE";
+  const newValue = row[key] === "TRUE" ? "FALSE" : "TRUE";
 
-  if (key === "repay" && copy[i].repay === "FALSE") {
-    copy[i].cardRepay = "FALSE";
+  const updateData: any = {
+    [key]: newValue,
+  };
+
+  if (key === "repay" && newValue === "FALSE") {
+    updateData.cardRepay = "FALSE";
   }
 
-  save(copy);
-};
+  const { error } = await supabase
+    .from("purchases")
+    .update(updateData)
+    .eq("id", row.id);
 
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  loadData();
+};
   const deleteRows = () => {
     const filtered = rows.filter((_, i) => !selected.includes(i));
     setSelected([]);
