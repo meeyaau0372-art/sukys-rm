@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabase";
+
 
 type Row = {
+  id: number;
   date: string;
   manager: string;
   item: string;
@@ -14,6 +17,8 @@ type Row = {
   repay: string;
   writeDate: string;
   reviewFee: string;
+  cardRepay: string;
+  reviewPaid: string;
 };
 
 /* 결제방법 8개 (그대로 사용) */
@@ -35,23 +40,26 @@ export default function PurchaseListPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState("");
 
- useEffect(() => {
-  const saved = localStorage.getItem("done-data");
-  if (saved) {
-    setRows(JSON.parse(saved));
+const loadData = async () => {
+  const { data, error } = await supabase
+    .from("done")
+    .select("*")
+    .order("date", { ascending: false });
+
+    console.log(data, error);
+
+  if (!error && data) {
+    setRows(data as Row[]);
   }
+};
+
+useEffect(() => {
+  loadData();
 }, []);
 
 const save = (data: Row[]) => {
   setRows(data);
-  localStorage.setItem("done-data", JSON.stringify(data));
 };
-
-  const toggleSelect = (i: number) => {
-    setSelected((p) =>
-      p.includes(i) ? p.filter((x) => x !== i) : [...p, i]
-    );
-  };
 
   const edit = (i: number, key: keyof Row, value: string) => {
     const copy = [...rows];
@@ -70,34 +78,52 @@ const save = (data: Row[]) => {
     setSelected([]);
     save(filtered);
   };
+const toggleSelect = (id: number) => {
+  setSelected((p) =>
+    p.includes(id)
+      ? p.filter((x) => x !== id)
+      : [...p, id]
+  );
+};
 
- const restoreRows = () => {
+const restoreRows = async () => {
   // 완료방 데이터
   const doneRows = [...rows];
 
   // 선택한 행
-  const restoreData = filteredRows
-  .filter(({ index }) => selected.includes(index))
-  .map(({ row }) => row);
+  const restoreData = rows.filter((r) =>
+  selected.includes(r.id)
+);
 
-  // 기존 구매내역 데이터 불러오기
-  const purchaseData = JSON.parse(
-    localStorage.getItem("sukys-data") || "[]"
-  );
+ // purchases 테이블에 다시 저장
+const { error: insertError } = await supabase
+  .from("purchases")
+.insert(
+  restoreData.map(({ id, ...rest }) => rest)
+);
 
-  // 구매내역에 추가
-  const newPurchaseData = [...purchaseData, ...restoreData];
-  localStorage.setItem("sukys-data", JSON.stringify(newPurchaseData));
 
-  // 완료방에서는 제거
-  const remaining = doneRows.filter((_, i) => !selected.includes(i));
-  localStorage.setItem("done-data", JSON.stringify(remaining));
 
-  setRows(remaining);
-  setSelected([]);
+if (insertError) {
+  return;
+}
 
-  // 구매내역조회로 이동
-  router.push("/purchase-list");
+// done 테이블에서 삭제
+const ids = restoreData.map((r) => r.id);
+
+const { error: deleteError } = await supabase
+  .from("done")
+  .delete()
+  .in("id", ids);
+
+if (deleteError) {
+  alert(deleteError.message);
+  return;
+}
+
+setSelected([]);
+loadData();
+router.push("/purchase-list"); 
 };
 
   const dot = (v: string) => (v === "TRUE" ? "🟢" : "🔴");
@@ -184,8 +210,8 @@ const save = (data: Row[]) => {
                 <td style={cellCenter}>
                   <input
                     type="checkbox"
-                    checked={selected.includes(index)}
-onChange={() => toggleSelect(index)}
+                    checked={selected.includes(r.id)}
+onChange={() => toggleSelect(r.id)}
                   />
                 </td>
 

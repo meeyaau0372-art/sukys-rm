@@ -4,7 +4,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabase";
+
 type Row = {
+   id: number; 
   date: string;
   manager: string;
   item: string;
@@ -26,16 +29,18 @@ const [productChecked, setProductChecked] = useState(false);
 const [reviewChecked, setReviewChecked] = useState(false);
 const [reviewAmount, setReviewAmount] = useState("");
 const [isSilbae, setIsSilbae] = useState(false);
-const findCandidates = () => {
-  const saved = localStorage.getItem("sukys-data");
+const findCandidates = async () => {
 
-  if (!saved) {
-    setCandidates([]);
-    return;
-  }
+const { data, error } = await supabase
+  .from("purchases")
+  .select("*")
+  .order("date", { ascending: false });
+if (error || !data) {
+  setCandidates([]);
+  return;
+}
 
- 
-  const list: Row[] = JSON.parse(saved);
+const list: Row[] = data;
 
 list.forEach((r) => {
   if (!r.reviewPaid) {
@@ -43,7 +48,7 @@ list.forEach((r) => {
   }
 });
 
-localStorage.setItem("sukys-data", JSON.stringify(list));
+
 
 const keyword = amount.trim().toLowerCase();
 
@@ -388,7 +393,7 @@ if (true) {
   원
  <button
   type="button"
- onClick={() => {
+ onClick={async () => {
   if (isSilbae) {
     setIsSilbae(false);
   } else {
@@ -445,26 +450,23 @@ if (true) {
   }}
 >
   <button
-    onClick={() => {
+   onClick={async () => {
       if (selectedIndex === null) {
         alert("후보를 선택하세요.");
         return;
       }
 
-      const saved = localStorage.getItem("sukys-data");
-if (!saved) return;
+    const { data, error } = await supabase
+  .from("purchases")
+  .select("*");
 
-const list: Row[] = JSON.parse(saved);
+if (error || !data) return;
+
+const list: Row[] = data;
 
 const target = candidates[selectedIndex];
 
-const idx = list.findIndex(
-  (r) =>
-    r.date === target.date &&
-    r.manager === target.manager &&
-    r.item === target.item &&
-    r.bangje === target.bangje
-);
+const idx = list.findIndex((r) => r.id === target.id);
 
 if (idx === -1) return;
 
@@ -479,8 +481,14 @@ if (reviewChecked) {
     : (reviewAmount || "1000");
 }
 
-localStorage.setItem("sukys-data", JSON.stringify(list));
-
+await supabase
+  .from("purchases")
+  .update({
+    payback: list[idx].payback,
+    reviewPaid: list[idx].reviewPaid,
+    reviewFee: list[idx].reviewFee,
+  })
+ .eq("id", list[idx].id);
 alert("입금처리 완료");
 setProductChecked(false);
 setReviewChecked(false);

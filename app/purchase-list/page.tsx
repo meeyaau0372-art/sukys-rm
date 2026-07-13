@@ -56,22 +56,37 @@ console.log("error =", error);
   }
 };
 
-  const save = (data: Row[]) => {
-    setRows(data);
-    localStorage.setItem("sukys-data", JSON.stringify(data));
-  };
+  const save = async (data: Row[]) => {
+  setRows(data);
+};
 
-  const toggleSelect = (i: number) => {
-    setSelected((p) =>
-      p.includes(i) ? p.filter((x) => x !== i) : [...p, i]
-    );
-  };
+ const toggleSelect = (id: number) => {
+  setSelected((p) =>
+    p.includes(id)
+      ? p.filter((x) => x !== id)
+      : [...p, id]
+  );
+};
+    
 
-  const edit = (i: number, key: keyof Row, value: string) => {
-    const copy = [...rows];
-    copy[i] = { ...copy[i], [key]: value };
-    save(copy);
-  };
+const edit = async (i: number, key: keyof Row, value: string) => {
+  const copy = [...rows];
+  copy[i] = { ...copy[i], [key]: value };
+
+  setRows(copy);
+
+  const { error } = await supabase
+    .from("purchases")
+    .update({
+      [key]: value,
+    })
+    .eq("id", copy[i].id);
+
+  if (error) {
+    alert(error.message);
+  }
+}; 
+
 
 const toggleBool = async (i: number, key: "payback" | "repay") => {
   const row = rows[i];
@@ -98,30 +113,60 @@ const toggleBool = async (i: number, key: "payback" | "repay") => {
 
   loadData();
 };
-  const deleteRows = () => {
-    const filtered = rows.filter((_, i) => !selected.includes(i));
-    setSelected([]);
-    save(filtered);
-  };
+  const deleteRows = async () => {
+  const ids = selected;
 
-  const moveRows = () => {
-    // 선택한 행
-    const selectedRows = rows.filter((_, i) => selected.includes(i));
+  const { error } = await supabase
+    .from("purchases")
+    .delete()
+    .in("id", ids);
 
-    // 기존 완료 목록 불러오기
-    const doneRows = JSON.parse(
-      localStorage.getItem("done-data") || "[]"
-    );
+  if (error) {
+    alert(error.message);
+    return;
+  }
 
-    // 기존 + 새 데이터 합치기
-    const newDoneRows = [...doneRows, ...selectedRows];
-    localStorage.setItem("done-data", JSON.stringify(newDoneRows));
+  setSelected([]);
+  loadData();
+};
 
-    // 구매목록에서는 제거
-    const remaining = rows.filter((_, i) => !selected.includes(i));
-   setSelected([]);
-save(remaining);
-  };
+  const moveRows = async () => {
+
+const selectedRows = rows.filter((r) =>
+  selected.includes(r.id)
+);
+
+const { error: insertError } = await supabase
+  .from("done")
+  .insert(
+    selectedRows.map(({ id, ...rest }) => rest)
+  );
+
+console.log("insertError =", insertError);
+
+if (insertError) {
+  alert(insertError.message);
+  return;
+}
+ 
+  const ids = selectedRows.map((r) => r.id);
+
+  const { error: deleteError } = await supabase
+    .from("purchases")
+    .delete()
+    .in("id", ids);
+
+  if (deleteError) {
+    alert(deleteError.message);
+    return;
+  }
+
+  setSelected([]);
+
+await loadData();
+
+router.push("/done");
+};
 
 
 
@@ -134,12 +179,17 @@ save(remaining);
         String(v).toLowerCase().includes(search.toLowerCase())
       )
     )
-    .sort((a, b) => {
-      const [am, ad] = a.row.date.split("/").map(Number);
-      const [bm, bd] = b.row.date.split("/").map(Number);
+   .sort((a, b) => {
+  const adate = new Date(
+    String(a.row.date).replace(/\//g, "-")
+  );
 
-      return bm * 100 + bd - (am * 100 + ad);
-    });
+  const bdate = new Date(
+    String(b.row.date).replace(/\//g, "-")
+  );
+
+  return bdate.getTime() - adate.getTime();
+});
   const unpaidByMethod = filteredRows.reduce((acc, { row: r }) => {
     const price = Number(String(r.price || "0").replace(/,/g, ""));
     if (r.payback !== "TRUE") {
@@ -228,7 +278,14 @@ save(remaining);
         >
           <div style={{ display: "flex", gap: 10 }}>
             <button style={btn} onClick={deleteRows}>삭제</button>
-            <button style={btn} onClick={moveRows}>완료</button>
+            <button
+  style={btn}
+  onClick={() => {
+    moveRows();
+  }}
+>
+  완료
+</button>
           </div>
 
           <input
@@ -271,8 +328,8 @@ save(remaining);
                   <td style={cellCenter}>
                     <input
                       type="checkbox"
-                      checked={selected.includes(index)}
-                      onChange={() => toggleSelect(index)}
+                      checked={selected.includes(r.id)}
+onChange={() => toggleSelect(r.id)}
                     />
                   </td>
 
