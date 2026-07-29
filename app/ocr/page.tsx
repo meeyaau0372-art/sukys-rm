@@ -68,17 +68,26 @@ const lines = text
 console.table(lines);
 
 const item = (() => {
-  const start = lines.findIndex(v => v.includes("결제완료"));
-
+ const start = lines.findIndex(v =>
+  v.includes("결제완료") ||
+  v.includes("상품준비중")
+);
   if (start >= 0) {
     const name: string[] = [];
 
     for (let i = start + 1; i < lines.length; i++) {
       const line = lines[i];
 
-      if (line.includes("원")) break;
-      if (line.includes("장바구니")) break;
-      if (line.includes("문의")) break;
+// 쿠팡 화면에서 상품명이 아닌 줄은 건너뜀
+if (line.includes("도착 예정")) continue;
+if (line.includes("내일")) continue;
+if (line.includes("상품준비중")) continue;
+if (line.includes("결제완료")) continue;
+if (line.includes("주문")) continue;
+
+if (line.includes("원")) break;
+if (line.includes("장바구니")) break;
+if (line.includes("문의")) break;
 
       if (line.trim() !== "") {
         name.push(line);
