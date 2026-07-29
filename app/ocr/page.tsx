@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createWorker } from "tesseract.js";
+import { supabase } from "../lib/supabase";
 
 export default function OcrPage() {
   const router = useRouter();
@@ -29,26 +31,132 @@ const updateOcrResult = (
   );
 };
 
-const registerOcr = () => {
-  const saved = localStorage.getItem("sukys-data");
-  const list = saved ? JSON.parse(saved) : [];
+const testOcr = async (file: File) => {
+  const worker = await createWorker("kor+eng");
 
-  ocrResults.forEach((row: any) => {
-    list.push({
-      date: String(row.date).replace(/-/g, "/"),
-      manager: "",
-      bangje: "",
-      item: row.item,
-      price: Number(String(row.price).replace(/,/g, "")),
-      method: row.card,
-      paid: "FALSE",
-      repay: "FALSE",
-    });
-  });
+  const {
+    data: { text },
+  } = await worker.recognize(file);
 
-  localStorage.setItem("sukys-data", JSON.stringify(list));
+console.log(text);
+
+
+const date =
+  text.match(/\d{4}\.\s*\d{1,2}\.\s*\d{1,2}/)?.[0]
+    ?.replace(/\./g, "-")
+    ?.replace(/\s/g, "") ?? "";
+
+const prices = text.match(/\d{1,3}(?:,\d{3})*\s*원/g) || [];
+
+let price = "";
+
+for (const p of prices) {
+  const n = Number(
+    p.replace(/원/g, "").replace(/,/g, "").trim()
+  );
+
+  if (n > Number(price.replace(/,/g, "") || 0)) {
+    price = n.toLocaleString();
+  }
+}
+
+const lines = text
+  .split("\n")
+  .map(v => v.trim())
+  .filter(v => v !== "");
+
+console.table(lines);
+
+const item = (() => {
+  const start = lines.findIndex(v => v.includes("결제완료"));
+
+  if (start >= 0) {
+    const name: string[] = [];
+
+    for (let i = start + 1; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (line.includes("원")) break;
+      if (line.includes("장바구니")) break;
+      if (line.includes("문의")) break;
+
+      if (line.trim() !== "") {
+        name.push(line);
+      }
+    }
+
+    return name.join(" ");
+  }
+
+  return "";
+})();
+
+console.log({
+  date,
+  item,
+  price,
+});
+
+let card = "";
+
+const methods = [
+  "신한",
+  "카카오",
+  "김토끼",
+  "하나",
+  "우리",
+  "롯데",
+  "삼성",
+  "현금",
+];
+
+for (const method of methods) {
+  if (text.includes(method)) {
+    card = method;
+    break;
+  }
+}
+
+await worker.terminate();
+
+return {
+  date,
+  item,
+  price,
+  card,
+};
+
+};
+
+const registerOcr = async () => {
+  const insertData = ocrResults.map((row: any) => ({
+  date: String(row.date).replace(/-/g, "/"),
+  manager: "",
+  bangje: "",
+  item: row.item,
+  price: Number(String(row.price).replace(/,/g, "")),
+  payback: "FALSE",
+  method: row.card,
+  repay: "FALSE",
+  cardRepay: "FALSE",
+  writeDate: "",
+  reviewFee: "",
+  reviewPaid: "FALSE",
+}));
+
+const { error } = await supabase
+  .from("purchases")
+  .insert(insertData);
+
+if (error) {
+  alert(error.message);
+  return;
+}
+
+  
 
   alert(`${ocrResults.length}건이 등록되었습니다.`);
+  setOcrResults([]);
 
   setOcrResults([]);
 
@@ -198,11 +306,22 @@ const registerOcr = () => {
   accept="image/*"
   multiple
   style={{ display: "none" }}
-  onChange={(e) => {
+  onChange={async (e) => {
     const files = e.target.files;
 
     if (!files) return;
+const results = [];
 
+for (const file of Array.from(files)) {
+  const result = await testOcr(file);
+
+  results.push({
+    ...result,
+    status: "✅",
+  });
+}
+
+setOcrResults(results);
     if (files.length > 20) {
       alert("최대 20장까지 선택 가능합니다.");
       return;
@@ -227,7 +346,7 @@ const registerOcr = () => {
 
         setOcrProgress(100);
         setOcrStatus(`✅ OCR 분석 완료 (${files.length}건 등록되었습니다.)`);
-
+/*
         const results = Array.from(files).map(() => ({
           date: today,
           item: "",
@@ -237,6 +356,7 @@ const registerOcr = () => {
         }));
 
         setOcrResults(results);
+        */
       }
     }, 500);
   }}

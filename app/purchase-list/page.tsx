@@ -333,10 +333,10 @@ onChange={() => toggleSelect(r.id)}
                     />
                   </td>
 
-                  <td style={cellCenter}><input style={input} value={r.date} onChange={(e) => edit(index, "date", e.target.value)} /></td>
-                  <td style={cellCenter}><input style={input} value={r.manager} onChange={(e) => edit(index, "manager", e.target.value)} /></td>
-                  <td style={cellCenter}><input style={input} value={r.item} onChange={(e) => edit(index, "item", e.target.value)} /></td>
-                  <td style={cellCenter}><input style={input} value={r.bangje} onChange={(e) => edit(index, "bangje", e.target.value)} /></td>
+                  <td style={cellCenter}><input style={input} value={r.date ?? ""} onChange={(e) => edit(index, "date", e.target.value)} /></td>
+                  <td style={cellCenter}><input style={input} value={r.manager ?? ""} onChange={(e) => edit(index, "manager", e.target.value)} /></td>
+<td style={cellCenter}><input style={input} value={r.item ?? ""} onChange={(e) => edit(index, "item", e.target.value)} /></td>
+<td style={cellCenter}><input style={input} value={r.bangje ?? ""} onChange={(e) => edit(index, "bangje", e.target.value)} /></td>
 
                   <td style={{ ...cellRight }}>
                     <input
@@ -374,7 +374,7 @@ onChange={() => toggleSelect(r.id)}
                   <td style={cellCenter}>
                     <input
                       style={input}
-                      value={r.writeDate}
+                      value={r.writeDate ?? ""}
                       onClick={() => {
                         if (!r.writeDate) {
                           const today = new Date();
